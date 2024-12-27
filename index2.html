@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Memory Sequence Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #84fab0, #8fd3f4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    #game-area {
+      display: flex;
+      flex-wrap: wrap;
+      width: 220px; /* enough width for two squares in a row */
+      margin-top: 20px;
+    }
+    .square {
+      width: 100px;
+      height: 100px;
+      margin: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      opacity: 0.9;
+      transition: transform 0.1s, opacity 0.3s;
+    }
+    .square:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    .red { background-color: #e74c3c; }
+    .green { background-color: #2ecc71; }
+    .blue { background-color: #3498db; }
+    .yellow { background-color: #f1c40f; }
+
+    #controls {
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 0 5px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    #start-btn {
+      background: #2ecc71;
+      color: #fff;
+    }
+    #start-btn:hover {
+      background: #27ae60;
+    }
+    #reset-btn {
+      background: #e74c3c;
+      color: #fff;
+    }
+    #reset-btn:hover {
+      background: #c0392b;
+    }
+
+    #status {
+      margin-top: 20px;
+      min-height: 1.5em; /* keep some space for messages */
+      font-size: 1.2rem;
+      color: #333;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Memory Sequence Game</h1>
+
+  <div id="game-area">
+    <div class="square red" data-color="red"></div>
+    <div class="square green" data-color="green"></div>
+    <div class="square blue" data-color="blue"></div>
+    <div class="square yellow" data-color="yellow"></div>
+  </div>
+
+  <div id="controls">
+    <button id="start-btn">Start</button>
+    <button id="reset-btn" style="display:none;">Reset</button>
+  </div>
+
+  <div id="status"></div>
+
+  <script>
+    /***********************************************
+     *               CONFIG & VARIABLES            *
+     ***********************************************/
+    const squares = document.querySelectorAll('.square');
+    const startBtn = document.getElementById('start-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const statusDiv = document.getElementById('status');
+
+    // The possible colors in our game
+    const colors = ['red', 'green', 'blue', 'yellow'];
+
+    let sequence = [];       // The computer-generated color sequence
+    let userSequence = [];   // The player's clicks for the current turn
+    let level = 0;           // Tracks how many steps are in the sequence so far
+    let inPlay = false;      // Indicates if the game is currently active
+
+    /***********************************************
+     *               GAME LOGIC                    *
+     ***********************************************/
+
+    // 1. Start the game
+    function startGame() {
+      startBtn.style.display = 'none';
+      resetBtn.style.display = 'inline-block';
+      sequence = [];
+      userSequence = [];
+      level = 0;
+      inPlay = true;
+
+      statusDiv.textContent = 'Watch the sequence carefully...';
+      nextRound();
+    }
+
+    // 2. Move to the next round (increase the sequence by 1)
+    function nextRound() {
+      level++;
+      userSequence = [];
+      statusDiv.textContent = `Level ${level}: Watch...`;
+      // Add a random color to the sequence
+      const nextColor = colors[Math.floor(Math.random() * colors.length)];
+      sequence.push(nextColor);
+      // Show the sequence to the user
+      showSequence(sequence);
+    }
+
+    // 3. Show sequence animations
+    async function showSequence(seq) {
+      inPlay = false;
+      for (let i = 0; i < seq.length; i++) {
+        // Highlight the corresponding square
+        const color = seq[i];
+        const square = document.querySelector(`.square.${color}`);
+        await highlightSquare(square);
+      }
+      // After displaying the sequence, allow user interaction
+      inPlay = true;
+      statusDiv.textContent = `Level ${level}: Your turn!`;
+    }
+
+    // 4. Handle user clicks on squares
+    squares.forEach((square) => {
+      square.addEventListener('click', (e) => {
+        if (!inPlay) return; // ignore clicks if sequence is still showing
+        const chosenColor = e.target.dataset.color;
+        userSequence.push(chosenColor);
+        // briefly highlight the square to give user feedback
+        highlightSquare(e.target);
+
+        // check user’s input so far
+        checkUserMove();
+      });
+    });
+
+    // 5. Check if the user's move is correct so far
+    function checkUserMove() {
+      const currentStepIndex = userSequence.length - 1;
+      // compare the latest user click to the sequence
+      if (userSequence[currentStepIndex] !== sequence[currentStepIndex]) {
+        // user made a mistake
+        inPlay = false;
+        statusDiv.textContent = `Wrong color! You reached Level ${level}.`;
+        return;
+      }
+
+      // if correct so far but incomplete sequence
+      if (userSequence.length < sequence.length) {
+        return;
+      }
+
+      // if the entire sequence is correct
+      if (userSequence.length === sequence.length) {
+        statusDiv.textContent = 'Good job! Next level coming...';
+        setTimeout(() => nextRound(), 1000);
+      }
+    }
+
+    // 6. Square highlight (returns a Promise so we can "await" it)
+    function highlightSquare(square) {
+      return new Promise((resolve) => {
+        square.style.opacity = '0.5';
+        setTimeout(() => {
+          square.style.opacity = '0.9';
+          setTimeout(() => resolve(), 200);
+        }, 300);
+      });
+    }
+
+    // 7. Reset the game
+    function resetGame() {
+      inPlay = false;
+      sequence = [];
+      userSequence = [];
+      level = 0;
+      statusDiv.textContent = 'Game reset. Press "Start" to play again.';
+      startBtn.style.display = 'inline-block';
+      resetBtn.style.display = 'none';
+    }
+
+    /***********************************************
+     *            EVENT LISTENERS                 *
+     ***********************************************/
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
